@@ -1,15 +1,15 @@
 const express = require('express');
 const axios = require('axios');
-const path = require('path');
-require('dotenv').config(); // To use environment variables
-
 const app = express();
+const port = 3000;
+const cors = require('cors');
+const path = require('path');
+require('dotenv').config(); 
 
-// Middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors());
 
-// Cashfree credentials from environment variables
+// Replace with your Cashfree credentials
 const appId = process.env.APP_ID;
 const secretKey = process.env.SECRET_KEY;
 
@@ -21,18 +21,17 @@ const headers = {
   'x-client-secret': secretKey,
 };
 
-// Serve static HTML files
 app.get('/terms-and-conditions', (req, res) => {
-  res.sendFile(path.join(__dirname, '../TnC.html'));  // Adjusted to point one level up
+  res.sendFile(path.join(__dirname, 'TnC.html'));
 });
-
 app.get('/privacy-policy', (req, res) => {
-  res.sendFile(path.join(__dirname, '../Privacy.html'));  // Adjusted to point one level up
+  res.sendFile(path.join(__dirname, '/Privacy.html'));
 });
 
-// In-memory storage for payment link IDs
+// In-memory storage for link_id (use a database in production)
 const payments = {};
 
+// Payment creation endpoint
 // Payment creation endpoint
 app.post('/api/create-payment-order', async (req, res) => {
   const { amount } = req.body;
@@ -44,8 +43,8 @@ app.post('/api/create-payment-order', async (req, res) => {
   const linkId = `link_${Date.now()}`; // Unique link ID
   const orderAmount = amount;
   const orderCurrency = 'INR';
-  const returnUrl = 'https://presizer-app.netlify.app/';  // Adjust to your frontend URL
-  const notifyUrl = 'http://localhost:3000/api/payment-notify';  // Adjust to Vercel endpoint after deployment
+  const returnUrl = 'http://localhost:5173';
+  const notifyUrl = 'http://localhost:3000/api/payment-notify';
 
   try {
     const response = await axios.post('https://sandbox.cashfree.com/pg/links', {
@@ -64,7 +63,7 @@ app.post('/api/create-payment-order', async (req, res) => {
     console.log(`Created payment order with link ID: ${createdLinkId}`);
 
     if (createdLinkId && response.data.link_url) {
-      payments[createdLinkId] = linkId;
+      payments[createdLinkId] = linkId; // Store the linkId
       res.json({ paymentLink: response.data.link_url, link_id: createdLinkId });
     } else {
       res.status(400).json({ error: 'Failed to create payment' });
@@ -76,7 +75,7 @@ app.post('/api/create-payment-order', async (req, res) => {
 });
 
 // Payment status check endpoint
-app.get('/api/payment-status/:linkId', async (req, res) => {
+app.get(`/api/payment-status/:linkId`, async (req, res) => {
   const { linkId } = req.params;
 
   if (!linkId || typeof linkId !== 'string') {
@@ -88,9 +87,14 @@ app.get('/api/payment-status/:linkId', async (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
+  console.log(`Checking payment status for link ID: ${linkId}`);
+  
   try {
     const response = await axios.get(`https://sandbox.cashfree.com/pg/links/${linkId}`, { headers });
 
+    console.log('Response data:', response.data); // Log the response data
+
+    // Check if the payment is successful
     if (response.data.link_status === 'PAID') {
       res.json({ status: 'success' });
     } else {
@@ -102,5 +106,6 @@ app.get('/api/payment-status/:linkId', async (req, res) => {
   }
 });
 
-// Export the app (for Vercel serverless function)
-module.exports = app;
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
+});
