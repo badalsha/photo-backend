@@ -1,10 +1,11 @@
 const express = require('express');
 const axios = require('axios');
-const app = express();
-const port = 3000;
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config(); 
+require('dotenv').config();
+
+const app = express();
+const port = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(cors());
@@ -22,16 +23,16 @@ const headers = {
 };
 
 app.get('/terms-and-conditions', (req, res) => {
-  res.sendFile(path.join(__dirname, 'TnC.html'));
+  res.sendFile(path.join(__dirname, '../TnC.html'));
 });
+
 app.get('/privacy-policy', (req, res) => {
-  res.sendFile(path.join(__dirname, '/Privacy.html'));
+  res.sendFile(path.join(__dirname, '../Privacy.html'));
 });
 
 // In-memory storage for link_id (use a database in production)
 const payments = {};
 
-// Payment creation endpoint
 // Payment creation endpoint
 app.post('/api/create-payment-order', async (req, res) => {
   const { amount } = req.body;
@@ -106,6 +107,5 @@ app.get(`/api/payment-status/:linkId`, async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
+// Export the Express app as a serverless function
+module.exports = app;
